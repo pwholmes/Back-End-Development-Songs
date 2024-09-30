@@ -51,3 +51,55 @@ def parse_json(data):
 ######################################################################
 # INSERT CODE HERE
 ######################################################################
+
+@app.route("/health", methods=["GET"])
+def health():
+    return {"status": "OK"}, 200
+
+@app.route("/count", methods=["GET"])
+def count():
+    print("Counting")
+    count = db.songs.count_documents({})
+    print("Counted")
+    return {"count": count}, 200
+
+@app.route("/song", methods=["GET"])
+def get_songs():
+    songs = db.songs.find({})
+    return {"songs": parse_json(songs)}, 200
+
+@app.route("/song/<int:id>", methods=["GET"])
+def get_song_by_id(id):
+    song = db.songs.find_one({"id":id})
+    if not song:
+        return {"message": "Song with id not found"}, 404
+    return parse_json(song), 200
+
+@app.route("/song", methods=["POST"])
+def create_song():
+    newsong = request.json
+    song = db.songs.find_one({"id":newsong['id']})
+    if song:
+        return {"message": f"Song with id {newsong['id']} already present"}, 302
+    result = db.songs.insert_one(newsong)
+    return {"Song inserted with database ID": f"{result.inserted_id}"}, 201
+
+@app.route("/song/<int:id>", methods=["PUT"])
+def update_song(id):
+    updates = request.json
+    song = db.songs.find_one({"id":id})
+    if song == None:
+        return {"message": "Song not found"}, 404
+    result = db.songs.update_one({"id":id}, {"$set": updates})
+    if result.modified_count == 0:
+        return {"message": "Song found, but nothing to update"}, 200
+    # Get the updated record
+    newsong = db.songs.find_one({"id":id})
+    return parse_json(newsong), 201
+
+@app.route("/song/<int:id>", methods=["DELETE"])
+def delete_song(id):
+    results = db.songs.delete_one({"id":id})
+    if results.deleted_count == 0:
+        return {"message": "Song not found"}, 404
+    return ("", 204)
